@@ -196,6 +196,25 @@ fi
 
 echo "All connectivity tests passed successfully!"
 
+# Now test that SOCKS fails when WireGuard is disconnected
+echo "Testing SOCKS behavior when WireGuard is disconnected..."
+
+# Simulate WireGuard disconnection by bringing down the interface
+docker exec wg-client-socks-server wg-quick down wg0
+
+# Try to access through SOCKS - this should fail
+echo "Verifying SOCKS proxy fails when WireGuard is down..."
+if curl -s --connect-timeout 5 --socks5-hostname localhost:1080 http://example.com > /dev/null 2>&1; then
+    echo "ERROR: SOCKS proxy should not work when WireGuard is down!"
+    exit 1
+else
+    echo "Confirmed: SOCKS proxy correctly fails when WireGuard is down"
+fi
+
+# Bring WireGuard back up for cleanup
+docker exec wg-client-socks-server wg-quick up wg0
+sleep 5  # Give time for WireGuard to reconnect
+
 # Kill the HTTP server
 kill $SERVER_PID 2>/dev/null || true
 
