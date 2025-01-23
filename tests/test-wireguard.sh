@@ -145,6 +145,15 @@ docker exec wg-client-socks-server ip route
 echo "Testing direct connection to SOCKS proxy server..."
 nc -z localhost 1080
 
+# Verify WireGuard server is NOT directly accessible
+echo "Verifying WireGuard server is not directly accessible without a proxy..."
+if curl -s --connect-timeout 3 http://10.0.0.1:8080; then
+    echo "ERROR: WireGuard server should not be directly accessible!"
+    exit 1
+else
+    echo "Confirmed: WireGuard server is not directly accessible (expected)"
+fi
+
 echo "Testing SOCKS proxy connection to WireGuard server..."
 curl -s --socks5-hostname localhost:1080 http://10.0.0.1:8080
 
