@@ -34,7 +34,7 @@ Network Details:
  - Docker
  - Wireguard configuration file
 
-1. Create/download any wg0.conf with desired wireguard VPN configuration, put it into current folder.
+1. Create/download a wireguard config (e.g. wg0.conf) with desired wireguard VPN configuration, put it into current folder.
 
 Example:
 ```
