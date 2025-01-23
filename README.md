@@ -5,17 +5,30 @@ Dedicated container to HTTP Proxy through a Wireguard VPN.
 
 The container combines a WireGuard client and a SOCKS proxy server to route traffic through a VPN:
 
+```mermaid
+graph LR
+    Client([Client]) --> |SOCKS5\n1080/tcp| Proxy[SOCKS Proxy]
+    subgraph Docker Container
+        Proxy --> |Route| WGClient[WireGuard Client\n51820/udp]
+    end
+    WGClient --> |Tunnel| WGServer[WireGuard Server]
+    WGServer --> |Forward| Internet((Internet))
+
+    style Docker Container fill:#f5f5f5,stroke:#333,stroke-width:2px
 ```
-Your Application → SOCKS Proxy (1080) → WireGuard Client → WireGuard Server → Internet
+
+Simple flow:
+```
+Client → SOCKS Proxy (1080) → WireGuard Client → WireGuard Server → Internet
 (socks client)     (socks-server)        (wg-client)        (wg-server)
                    [Container Port 1080]  [Container]        [Remote VPN]
 ```
 
 Network Details:
 - SOCKS Proxy Server: Listens on port 1080 for incoming SOCKS5 connections
-- WireGuard Client: Routes all traffic through the WireGuard tunnel
+- WireGuard Client: Routes all traffic through the WireGuard tunnel (UDP port 51820)
 - Both SOCKS server and WireGuard client run in the same container
-- Traffic flow: Application → SOCKS → WireGuard → Internet
+- Traffic flow: Client → SOCKS (1080/tcp) → WireGuard (51820/udp) → Internet
 
 ## Prerequisites:
  - Docker
