@@ -39,10 +39,6 @@ Endpoint = wg-server:51820
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF
-
-# Verify config file exists and is readable
-ls -la /tmp/wg_client_config/wg_confs/wg0.conf
-
 # Change to the wg_confs directory
 cd /tmp/wg_client_config/wg_confs
 
@@ -60,7 +56,7 @@ docker run -d --name wg-client-socks-server \
     --network wg-test-net \
     --privileged \
     --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
-    -e LOG_CONFS=true \
+    -e LOG_CONFS=false \
     -e PUID=1000 \
     -e PGID=1000 \
     -e TZ=UTC \
@@ -69,17 +65,26 @@ docker run -d --name wg-client-socks-server \
     -v ".:/config/wg_confs" \
     wireguard-socks:local
 
-# Wait for containers to start and establish connection
-echo "Waiting for services to initialize (watching logs)..."
-timeout 30 docker logs -f wg-client-socks-server &
-LOGS_PID=$!
-sleep 10
-kill $LOGS_PID 2>/dev/null || true
+# Wait for services to be ready
+echo "Waiting for services to initialize..."
+TIMEOUT=30
+INTERVAL=1
+ELAPSED=0
 
-# Check if services are running
-echo "Checking service status..."
-docker exec wg-client-socks-server netstat -ln | grep 1080 || echo "SOCKS proxy not listening"
-docker exec wg-client-socks-server wg show || echo "WireGuard not ready"
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    if docker exec wg-client-socks-server netstat -ln | grep -q ":1080.*LISTEN" && \
+       docker exec wg-client-socks-server wg show 2>/dev/null | grep -q "latest handshake"; then
+        echo "Services are ready"
+        break
+    fi
+    sleep $INTERVAL
+    ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+if [ $ELAPSED -ge $TIMEOUT ]; then
+    echo "Timeout waiting for services to initialize"
+    exit 1
+fi
 
 # Start HTTP server on WireGuard server
 echo "Starting Python HTTP server on WireGuard server (10.0.0.1:8080)..."
@@ -138,53 +143,45 @@ docker exec wg-client-socks-server ip route
 
 # Test direct connection to SOCKS proxy
 echo "Testing direct connection to SOCKS proxy server..."
-echo "Testing with netcat:"
-nc -zv localhost 1080
+nc -z localhost 1080
 
-echo -e "\nTesting SOCKS proxy connection to WireGuard server..."
-echo "Attempting to reach WireGuard server (10.0.0.1:8080) through SOCKS proxy..."
-curl -v --socks5-hostname localhost:1080 http://10.0.0.1:8080
+echo "Testing SOCKS proxy connection to WireGuard server..."
+curl -s --socks5-hostname localhost:1080 http://10.0.0.1:8080
 
 # Only if local test succeeds, try external sites
 if [ $? -eq 0 ]; then
-    echo -e "\nTesting SOCKS proxy with public sites..."
-    echo "Testing ipinfo.io through SOCKS proxy:"
-    curl -v --socks5-hostname localhost:1080 https://ipinfo.io
+    echo "Testing SOCKS proxy with public sites..."
+    curl -s --socks5-hostname localhost:1080 https://ipinfo.io
 fi
 
 # Test WireGuard connectivity
-echo -e "\nTesting WireGuard connectivity..."
-echo "Pinging WireGuard server from client:"
+echo "Testing WireGuard connectivity..."
 docker exec wg-client-socks-server ping -c 1 10.0.0.1
 
 echo "Testing HTTP server directly from WireGuard client:"
-docker exec wg-client-socks-server sh -c "apk add --no-cache curl && curl -v http://10.0.0.1:8080"
+docker exec wg-client-socks-server sh -c "apk add --no-cache curl && curl -s http://10.0.0.1:8080"
 
 # Test connection through SOCKS proxy to WireGuard server
-echo -e "\nTesting connection through SOCKS proxy to WireGuard server..."
-echo "Attempting to connect to 10.0.0.1:8080 through SOCKS proxy..."
+echo "Testing connection through SOCKS proxy to WireGuard server..."
 
 # Test with curl and explicit SOCKS5 proxy
 echo "Testing with curl and SOCKS5 proxy:"
-curl -v -x socks5://localhost:1080 http://10.0.0.1:8080
+curl -s -x socks5://localhost:1080 http://10.0.0.1:8080
 
 # Test with curl and SOCKS5h proxy (proxy does DNS resolution)
-echo -e "\nTesting with curl and SOCKS5h proxy (proxy DNS resolution):"
-curl -v -x socks5h://localhost:1080 http://10.0.0.1:8080
+echo "Testing with curl and SOCKS5h proxy:"
+curl -s -x socks5h://localhost:1080 http://10.0.0.1:8080
 
 # Test with curl environment variables
-echo -e "\nTesting with curl environment variables:"
-ALL_PROXY=socks5://localhost:1080 curl -v http://10.0.0.1:8080
+echo "Testing with curl environment variables:"
+ALL_PROXY=socks5://localhost:1080 curl -s http://10.0.0.1:8080
 
 # Debug server status if all tests fail
 if [ $? -ne 0 ]; then
-    echo -e "\nDebug: Server Status"
-    echo "Server process:"
-    docker exec wg-server ps aux | grep socat
-    echo "Server port listening:"
+    echo "Debug: Server Status"
+    docker exec wg-server ps aux | grep python
     docker exec wg-server netstat -ln | grep 8080
-    echo "Testing server directly:"
-    docker exec wg-server curl -v http://localhost:8080
+    docker exec wg-server curl -s http://localhost:8080
     exit 1
 fi
 
@@ -194,10 +191,8 @@ echo "All connectivity tests passed successfully!"
 kill $SERVER_PID 2>/dev/null || true
 
 # Get final status
-echo -e "\nFinal Network Status:"
-echo "WireGuard Server (10.0.0.1) Status:"
+echo "Final Network Status:"
 docker exec wg-server wg show
-echo -e "\nWireGuard Client + SOCKS Server (10.0.0.2) Status:"
 docker exec wg-client-socks-server wg show
 
 # Cleanup

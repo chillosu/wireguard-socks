@@ -5,7 +5,7 @@ FROM linuxserver/wireguard
 ENV PUID=1000 \
     PGID=1000 \
     TZ=America/Los_Angeles \
-    LOG_CONFS=true \
+    LOG_CONFS=false \
     DNS=1.1.1.1 \
     SOCKS_PORT=1080 \
     WIREGUARD_PORT=51820
@@ -54,7 +54,6 @@ COPY <<EOF /etc/s6-overlay/s6-rc.d/svc-sockd/run
 
 # Wait for WireGuard interface to be up
 while ! ip link show wg0 up > /dev/null 2>&1; do
-    echo "Waiting for WireGuard interface..."
     sleep 1
 done
 
@@ -67,8 +66,8 @@ iptables -A FORWARD -o wg0 -j ACCEPT
 ip route add default dev wg0 table 200
 ip rule add fwmark 0x1 table 200
 
-# Start Dante server with debug output
-sockd -f /etc/sockd.conf -p /var/run/sockd.pid -N 2 -D
+# Start Dante server
+sockd -f /etc/sockd.conf -p /var/run/sockd.pid
 EOF
 
 RUN touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-sockd && \
@@ -86,19 +85,16 @@ set -e
 
 # Check if WireGuard interface is up
 if ! ip link show wg0 up > /dev/null 2>&1; then
-    echo "WireGuard interface is down"
     exit 1
 fi
 
 # Check if WireGuard has a valid IP
 if ! ip addr show wg0 | grep -q "inet "; then
-    echo "WireGuard interface has no IP"
     exit 1
 fi
 
 # Check if SOCKS port is listening
 if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
-    echo "SOCKS proxy is not listening"
     exit 1
 fi
 
