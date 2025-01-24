@@ -3,25 +3,22 @@ Dedicated container to HTTP Proxy through a Wireguard VPN.
 
 ## Network Flow
 
-The container combines a WireGuard client and a SOCKS proxy server to route traffic through a VPN:
+The container (wg-client-socks-server below) combines a WireGuard client and a SOCKS proxy server to route traffic through a VPN:
 
 ```mermaid
 graph LR
-    Client([Client]) --> |SOCKS5\n1080/tcp| Proxy[SOCKS Proxy]
-    subgraph Docker Container
-        Proxy --> |Route| WGClient[WireGuard Client\n51820/udp]
+    subgraph "[wg-client-socks-server]"
+        SOCKS["SOCKS Proxy"]
+        wg-client["WireGuard Client"]
+        SOCKS -- Route --> wg-client
     end
-    WGClient --> |Tunnel| WGServer[WireGuard Server]
-    WGServer --> |Forward| Internet((Internet))
-
-    style Docker Container fill:#f5f5f5,stroke:#333,stroke-width:2px
-```
-
-Simple flow:
-```
-Client → SOCKS Proxy (1080) → WireGuard Client → WireGuard Server → Internet
-(socks client)     (socks-server)        (wg-client)        (wg-server)
-                   [Container Port 1080]  [Container]        [Remote VPN]
+    
+    Client -- "SOCKS:1080/tcp" --> SOCKS
+    wg-client -- wg0 tunnel --> WGServer["WireGuard Server :51820/udp"]
+    subgraph "[wg-server]"
+        WGServer
+    end
+    WGServer -- Forward --> Internet((Internet))
 ```
 
 Network Details:
@@ -30,11 +27,11 @@ Network Details:
 - Both SOCKS server and WireGuard client run in the same container
 - Traffic flow: Client → SOCKS (1080/tcp) → WireGuard (51820/udp) → Internet
 
-## Prerequisites:
- - Docker
- - Wireguard configuration file
+## Run me:
 
-1. Create/download a wireguard config (e.g. wg0.conf) with desired wireguard VPN configuration, put it into current folder.
+
+1. Download Docker
+2. Create/download a working wireguard client config (e.g. wg0.conf) with desired wireguard VPN configuration, put it into current folder.
 
 Example:
 ```
@@ -52,7 +49,7 @@ PersistentKeepalive = 25
 AllowedIPs = 0.0.0.0/0
 ```
 
-2. Run the docker container with the following command:
+3. Run the docker container with the following command:
 
 ```
 docker run -d \
@@ -71,10 +68,10 @@ docker run -d \
   chillosu/wireguard-socks
 ```
 
-3. Reveal egress through your new socks proxy:
+4. Reveal returned public egress through your new socks proxy:
 
-`curl -x socks5://localhost:1080 ipinfo.io`
+`curl -x socks5://${HOST:-localhost}:1080 ipinfo.io`
 
-4. Reveal egress without your new socks proxy:
+5. Reveal egress without your new socks proxy:
 
 `curl ipinfo.io`
