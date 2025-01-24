@@ -7,14 +7,22 @@ The container combines a WireGuard client and a SOCKS proxy server to route traf
 
 ```mermaid
 graph LR
-    Client([Client]) --> |SOCKS5\n1080/tcp| Proxy[SOCKS Proxy]
-    subgraph Docker Container
-        Proxy --> |Route| WGClient[WireGuard Client\n51820/udp]
+    subgraph "Docker Container"
+        SOCKS["SOCKS Proxy"]
+        WG["WireGuard\nClient<br>:51820/udp"]
+        SOCKS -- Route --> WG
     end
-    WGClient --> |Tunnel| WGServer[WireGuard Server]
-    WGServer --> |Forward| Internet((Internet))
+    
+    Client -- "SOCKS:1080/tcp" --> SOCKS
+    WG -- Tunnel --> WGServer["WireGuard Server"] 
+    WGServer -- Forward --> Internet((Internet))
 
-    style Docker Container fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style Docker Container fill:#2f2f2f,stroke:#666,stroke-width:2px
+    style Client fill:#1f1f1f,stroke:#333
+    style SOCKS fill:#2f2f2f,stroke:#333
+    style WG fill:#2f2f2f,stroke:#333
+    style WGServer fill:#1f1f1f,stroke:#333
+    style Internet fill:#1f1f1f,stroke:#333
 ```
 
 Simple flow:
