@@ -1,4 +1,6 @@
 # wireguard-socks
+[![Build and Test](https://github.com/chillosu/wireguard-socks/actions/workflows/docker-build.yml/badge.svg)](https://github.com/chillosu/wireguard-socks/actions/workflows/docker-build.yml)
+
 Dedicated container to HTTP Proxy through a Wireguard VPN.
 
 ## Network Flow
