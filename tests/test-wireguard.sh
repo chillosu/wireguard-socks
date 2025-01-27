@@ -220,8 +220,8 @@ else
 fi
 
 # Wait up to 15 seconds for container to become unhealthy
-echo "Waiting up to 15 seconds for container to become unhealthy..."
-TIMEOUT=15
+echo "Waiting up to 30 seconds for container to become unhealthy..."
+TIMEOUT=30
 ELAPSED=0
 UNHEALTHY=false
 
