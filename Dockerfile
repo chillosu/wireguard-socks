@@ -57,32 +57,6 @@ while ! ip link show wg0 up > /dev/null 2>&1; do
     sleep 1
 done
 
-# Ensure proper routing and restrict traffic to WireGuard only
-iptables -F
-iptables -P INPUT DROP
-iptables -P FORWARD DROP
-iptables -P OUTPUT DROP
-
-# Allow established connections
-iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-
-# Allow loopback
-iptables -A INPUT -i lo -j ACCEPT
-iptables -A OUTPUT -o lo -j ACCEPT
-
-# Allow WireGuard UDP traffic
-iptables -A INPUT -p udp --dport ${WIREGUARD_PORT} -j ACCEPT
-iptables -A OUTPUT -p udp --dport 51820 -j ACCEPT
-
-# Allow incoming SOCKS connections
-iptables -A INPUT -p tcp --dport ${SOCKS_PORT} -j ACCEPT
-
-# Allow DNS queries to container's DNS
-iptables -A OUTPUT -p udp --dport 53 -d ${DNS} -j ACCEPT
-
-# Allow outbound traffic ONLY through WireGuard interface
-iptables -A OUTPUT -o wg0 -j ACCEPT
 
 # Start Dante server
 sockd -f /etc/sockd.conf -p /var/run/sockd.pid
