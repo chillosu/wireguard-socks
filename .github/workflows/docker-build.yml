@@ -2,22 +2,49 @@ name: Build and Test
 
 on:
   push:
-    branches: [ "*" ]
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
-    outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Check for base image updates
+        id: check
+        run: |
+          # Get current base image digest
+          CURRENT_DIGEST=$(docker pull linuxserver/wireguard:latest | grep -i digest | awk '{print $3}')
+          echo "current_digest=$CURRENT_DIGEST" >> $GITHUB_OUTPUT
+          
+          # Compare with last known digest (if exists)
+          if [ -f .base-image-digest ]; then
+            LAST_DIGEST=$(cat .base-image-digest)
+            if [ "$CURRENT_DIGEST" != "$LAST_DIGEST" ]; then
+              echo "Base image updated from $LAST_DIGEST to $CURRENT_DIGEST"
+              echo "updated=true" >> $GITHUB_OUTPUT
+            else
+              echo "No base image updates"
+              echo "updated=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "First run, storing initial digest"
+            echo "updated=true" >> $GITHUB_OUTPUT
+          fi
+          echo "$CURRENT_DIGEST" > .base-image-digest
 
       - name: Set up Docker Buildx
+        if: github.event_name != 'schedule' || steps.check.outputs.updated == 'true'
         uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
 
-      - name: Build image
-        id: build
+      - name: Build for testing
+        if: github.event_name != 'schedule' || steps.check.outputs.updated == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -26,14 +53,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Run Wireguard tests
+        if: github.event_name != 'schedule' || steps.check.outputs.updated == 'true'
+        run: sudo ./tests/test-wireguard.sh
+
       - name: Verify image
         run: docker images | grep wireguard-socks
-
-      - name: Install WireGuard and test
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wireguard-tools
-          sudo ./tests/test-wireguard.sh
 
       - name: Save image for publishing
         if: github.ref == 'refs/heads/main'
@@ -47,7 +72,7 @@ jobs:
           path: /tmp/wireguard-socks.tar
 
   publish:
-    needs: build-and-test
+    needs: build
     if: github.ref == 'refs/heads/main'
     environment: Prod
     runs-on: ubuntu-latest
