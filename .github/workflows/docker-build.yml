@@ -1,0 +1,73 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ "*" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: wireguard-socks:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image
+        run: docker images | grep wireguard-socks
+
+      - name: Install WireGuard and test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wireguard-tools
+          sudo ./tests/test-wireguard.sh
+
+      - name: Save image for publishing
+        if: github.ref == 'refs/heads/main'
+        run: docker save wireguard-socks:local > /tmp/wireguard-socks.tar
+
+      - name: Upload artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wireguard-socks
+          path: /tmp/wireguard-socks.tar
+
+  publish:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    environment: Prod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wireguard-socks
+          path: /tmp
+
+      - name: Load image
+        run: docker load --input /tmp/wireguard-socks.tar
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag and push
+        run: |
+          docker tag wireguard-socks:local chillosu/wireguard-socks:latest
+          docker push chillosu/wireguard-socks:latest 
