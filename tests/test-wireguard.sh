@@ -155,15 +155,20 @@ else
 fi
 
 echo "Testing direct connection to public sites..."
-curl -s https://ipinfo.io
+if ! curl -s --max-time 5 https://ipinfo.io; then
+    echo "Warning: Direct connection to ipinfo.io failed (this is not critical for the test)"
+fi
 
 echo "Testing SOCKS proxy connection to WireGuard server..."
-curl -s --socks5-hostname localhost:1080 http://10.0.0.1:8080
+if ! curl -s --socks5-hostname localhost:1080 http://10.0.0.1:8080; then
+    echo "Error: Failed to connect to WireGuard server through SOCKS proxy"
+    exit 1
+fi
 
-# Only if local test succeeds, try external sites
-if [ $? -eq 0 ]; then
-    echo "Testing SOCKS proxy with public sites..."
-    curl -s --socks5-hostname localhost:1080 https://ipinfo.io
+# Test external sites through SOCKS proxy
+echo "Testing SOCKS proxy with public sites..."
+if ! curl -s --max-time 5 --socks5-hostname localhost:1080 https://ipinfo.io; then
+    echo "Warning: Connection to ipinfo.io through SOCKS proxy failed (this is not critical for the test)"
 fi
 
 # Test WireGuard connectivity
