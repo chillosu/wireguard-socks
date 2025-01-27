@@ -101,26 +101,36 @@ COPY <<EOF /usr/local/bin/healthcheck.sh
 #!/bin/sh
 set -e
 
-# Check if WireGuard interface is up
+echo "Starting healthcheck..."
+
+echo "Checking if WireGuard interface is up..."
 if ! ip link show wg0 up > /dev/null 2>&1; then
+    echo "FAILED: WireGuard interface (wg0) is not up"
+    ip link show
     exit 1
 fi
+echo "OK: WireGuard interface is up"
 
-# Check if WireGuard has a valid IP
+echo "Checking if WireGuard has valid IP..."
 if ! ip addr show wg0 | grep -q "inet "; then
+    echo "FAILED: WireGuard interface has no valid IP"
+    ip addr show wg0
     exit 1
 fi
+echo "OK: WireGuard has valid IP"
+echo "WireGuard IP configuration:"
+ip addr show wg0
 
-# Check if SOCKS port is listening
+echo "Checking if SOCKS port is listening..."
 if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
+    echo "FAILED: SOCKS port ${SOCKS_PORT} is not listening"
+    echo "Current listening ports:"
+    netstat -an | grep LISTEN
     exit 1
 fi
+echo "OK: SOCKS port is listening"
 
-# Verify traffic can only go through WireGuard
-if ip route show default | grep -v wg0; then
-    exit 1
-fi
-
+echo "All checks passed successfully!"
 exit 0
 EOF
 

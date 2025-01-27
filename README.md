@@ -64,7 +64,6 @@ docker run -d \
   -e LOG_CONFS=true \
   -p ${SOCKS_PORT:-1080}:${SOCKS_PORT:-1080} \
   -p ${WIREGUARD_PORT:-51820}:${WIREGUARD_PORT:-51820}/udp \
-  --dns=${DNS:-1.1.1.1} \
   -v "${CONFIG_PATH:-.}:/config/wg_confs" \
   --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
   chillosu/wireguard-socks

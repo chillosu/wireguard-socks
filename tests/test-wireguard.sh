@@ -154,6 +154,9 @@ else
     echo "Confirmed: WireGuard server is not directly accessible (expected)"
 fi
 
+echo "Testing direct connection to public sites..."
+curl -s https://ipinfo.io
+
 echo "Testing SOCKS proxy connection to WireGuard server..."
 curl -s --socks5-hostname localhost:1080 http://10.0.0.1:8080
 
