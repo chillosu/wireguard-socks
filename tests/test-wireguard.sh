@@ -210,6 +210,15 @@ echo "Testing SOCKS behavior when WireGuard is disconnected..."
 # Simulate WireGuard disconnection by bringing down the interface
 docker exec wg-client-socks-server wg-quick down wg0
 
+# Try to access through SOCKS - this should fail
+echo "Verifying SOCKS proxy fails when WireGuard is down..."
+if curl -s --connect-timeout 5 --socks5-hostname localhost:1080 http://example.com > /dev/null 2>&1; then
+    echo "ERROR: SOCKS proxy should not work when WireGuard is down!"
+    exit 1
+else
+    echo "Confirmed: SOCKS proxy correctly fails when WireGuard is down"
+fi
+
 # Wait up to 15 seconds for container to become unhealthy
 echo "Waiting up to 15 seconds for container to become unhealthy..."
 TIMEOUT=15
@@ -232,15 +241,6 @@ if [ "$UNHEALTHY" = false ]; then
     echo "ERROR: Container did not become unhealthy within ${TIMEOUT} seconds!"
     echo "Final health status: $HEALTH_STATUS"
     exit 1
-fi
-
-# Try to access through SOCKS - this should fail
-echo "Verifying SOCKS proxy fails when WireGuard is down..."
-if curl -s --connect-timeout 5 --socks5-hostname localhost:1080 http://example.com > /dev/null 2>&1; then
-    echo "ERROR: SOCKS proxy should not work when WireGuard is down!"
-    exit 1
-else
-    echo "Confirmed: SOCKS proxy correctly fails when WireGuard is down"
 fi
 
 # Bring WireGuard back up for cleanup
