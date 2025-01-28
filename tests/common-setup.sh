@@ -130,14 +130,34 @@ wait_for_services() {
 
 setup_test_server() {
     echo "Setting up test HTTP server..."
+    # Install required packages
     docker exec wg-server apk add --no-cache python3 curl
-    docker exec wg-server sh -c "echo 'hello' > /tmp/index.html && cd /tmp && python3 -m http.server 8080" &
-    SERVER_PID=$!
-    sleep 5
-    echo "Test server started with PID: $SERVER_PID"
-    echo "Verifying test server:"
-    docker exec wg-server netstat -ln | grep 8080 || true
-    return $SERVER_PID
+
+    # Create test file and start server in the container
+    docker exec wg-server sh -c 'echo "hello" > /tmp/index.html'
+    docker exec -d wg-server sh -c 'cd /tmp && python3 -m http.server 8080'
+
+    # Wait for server to start
+    echo "Waiting for HTTP server to start..."
+    TIMEOUT=10
+    ELAPSED=0
+    while [ $ELAPSED -lt $TIMEOUT ]; do
+        if docker exec wg-server netstat -ln | grep -q ":8080.*LISTEN"; then
+            echo "HTTP server is running"
+            # Test the server
+            if docker exec wg-server curl -s http://localhost:8080 | grep -q "hello"; then
+                echo "HTTP server is responding correctly"
+                return 0
+            fi
+        fi
+        sleep 1
+        ELAPSED=$((ELAPSED + 1))
+    done
+
+    echo "Failed to start HTTP server"
+    docker exec wg-server ps aux
+    docker exec wg-server netstat -ln
+    return 1
 }
 
 install_test_tools() {
@@ -156,7 +176,6 @@ EOF
 
 cleanup() {
     echo "Cleaning up..."
-    kill $1 2>/dev/null || true
     docker rm -f wg-server wg-client-socks-server || true
     docker network rm wg-test-net || true
     rm -rf /tmp/wg-server.conf /tmp/wg_client_config || true
