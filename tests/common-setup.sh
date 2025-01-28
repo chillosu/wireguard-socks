@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Enable debug output
-set -x
-
 # Common setup functions for WireGuard tests
 setup_network() {
     echo "Setting up test network..."
