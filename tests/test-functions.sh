@@ -26,6 +26,10 @@ wait_for_health_status() {
     if [ "$status_found" = false ]; then
         echo "ERROR: Container did not become $expected_status within ${timeout} seconds!"
         echo "Final health status: $health_status"
+        echo "Last health check logs:"
+        docker inspect wg-client-socks-server --format='{{json .State.Health}}' | jq -r '.Log[-1].Output'
+        echo "Container logs:"
+        docker logs wg-client-socks-server
         return 1
     fi
     return 0
