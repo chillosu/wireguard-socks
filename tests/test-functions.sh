@@ -34,9 +34,10 @@ wait_for_health_status() {
 test_socks_proxy() {
     local should_work=$1
     local message=${2:-"Testing SOCKS proxy connection..."}
+    local test_url=${3:-"http://ipinfo.io"}
     
     echo "$message"
-    if curl -s --connect-timeout 5 --socks5-hostname $WG_CLIENT_SOCKS_SERVER_IP:1080 http://ipinfo.io > /dev/null 2>&1; then
+    if curl -s --connect-timeout 5 --socks5-hostname $WG_CLIENT_SOCKS_SERVER_IP:1080 "$test_url" > /dev/null 2>&1; then
         if [ "$should_work" = "false" ]; then
             echo "ERROR: SOCKS proxy should not work!"
             return 1
@@ -52,31 +53,54 @@ test_socks_proxy() {
     return 0
 }
 
+run_command() {
+    local cmd=$1
+    local ignore_error=${2:-false}
+    
+    echo "Running command: $cmd"
+    if ! eval "$cmd"; then
+        if [ "$ignore_error" = "false" ]; then
+            echo "ERROR: Command failed: $cmd"
+            return 1
+        else
+            echo "Command failed but continuing as requested"
+        fi
+    fi
+    return 0
+}
+
+restart_containers() {
+    echo "Restarting containers with fresh state..."
+    docker compose down -v
+    docker compose up -d
+    wait_for_services || return 1
+    return 0
+}
+
 run_test_scenario() {
     local name=$1
     local setup_cmd=$2
     local expected_health=$3
     local should_work=${4:-false}
-    local cleanup_cmd=${5:-""}
+    local should_restart=${5:-false}
+    local ignore_setup_error=${6:-false}
     
     echo "Test: $name"
     
     # Run setup command
     if [ -n "$setup_cmd" ]; then
-        echo "Running setup: $setup_cmd"
-        eval "$setup_cmd"
+        run_command "$setup_cmd" "$ignore_setup_error" || return 1
     fi
     
     # Test SOCKS proxy
-    test_socks_proxy "$should_work" "Verifying SOCKS proxy behavior..." || return 1
+    test_socks_proxy "$should_work" "Verifying SOCKS proxy behavior..." "http://10.0.0.1:8080" || return 1
     
     # Wait for expected health status
     wait_for_health_status "$expected_health" 30 || return 1
     
-    # Run cleanup command if provided
-    if [ -n "$cleanup_cmd" ]; then
-        echo "Running cleanup: $cleanup_cmd"
-        eval "$cleanup_cmd"
+    # Restart containers if requested
+    if [ "$should_restart" = "true" ]; then
+        restart_containers || return 1
     fi
     
     return 0
