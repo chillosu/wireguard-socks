@@ -107,16 +107,23 @@ if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
 fi
 echo "OK: SOCKS port is listening"
 
-echo "Checking default route..."
-if ! ip route show default | grep -q "dev wg0"; then
-    echo "FAILED: Default route is not through WireGuard"
-    echo "Current default route:"
-    ip route show default
-    echo "Full routing table:"
-    ip route show
+echo "Checking WireGuard routing..."
+# Check if the WireGuard routing rule exists
+if ! ip rule show | grep -q "not from all fwmark 0xca6c lookup 51820"; then
+    echo "FAILED: WireGuard routing rule is missing"
+    echo "Current routing rules:"
+    ip rule show
     exit 1
 fi
-echo "OK: Default route is through WireGuard"
+
+# Check if the default route in table 51820 goes through wg0
+if ! ip route show table 51820 | grep -q "^default.*dev wg0"; then
+    echo "FAILED: Default route in table 51820 is not through WireGuard"
+    echo "Current routes in table 51820:"
+    ip route show table 51820
+    exit 1
+fi
+echo "OK: WireGuard routing is correctly configured"
 
 echo "All checks passed successfully!"
 exit 0
