@@ -1,7 +1,7 @@
 # wireguard-socks
 [![Build and Test](https://github.com/chillosu/wireguard-socks/actions/workflows/docker-build.yml/badge.svg)](https://github.com/chillosu/wireguard-socks/actions/workflows/docker-build.yml)
 
-Dedicated container to HTTP Proxy through a Wireguard VPN.
+Dedicated container to HTTP Proxy through a Wireguard VPN using https://github.com/linuxserver/docker-wireguard as a base.
 
 ## Network Flow
 
@@ -57,8 +57,6 @@ docker run -d \
   --name=wireguard-socks \
   --cap-add=NET_ADMIN \
   --restart=always \
-  -e PUID=1000 \
-  -e PGID=1000 \
   -e TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone) \
   -e LOG_CONFS=true \
   -p ${SOCKS_PORT:-1080}:${SOCKS_PORT:-1080} \

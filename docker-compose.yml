@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   wg-client-socks-server:
     build:
@@ -10,8 +8,6 @@ services:
       - NET_ADMIN
     restart: always
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ=${TZ:-UTC}
       - LOG_CONFS=${LOG_CONFS:-true}
       - SOCKS_PORT=${SOCKS_PORT:-1080}
