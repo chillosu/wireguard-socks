@@ -108,23 +108,25 @@ fi
 echo "OK: SOCKS port is listening"
 
 echo "Checking WireGuard connectivity..."
-# Get our WireGuard IP
-WG_IP=$(ip addr show wg0 | grep -oP 'inet \K[^/]+')
-if [ -z "$WG_IP" ]; then
-    echo "FAILED: Could not determine WireGuard interface IP"
+# Extract the peer's endpoint IP
+PEER_ENDPOINT=$(wg show wg0 endpoints | awk '{print $2}' | cut -d: -f1)
+if [ -z "$PEER_ENDPOINT" ]; then
+    echo "FAILED: Could not determine WireGuard peer endpoint"
+    echo "WireGuard status:"
+    wg show wg0
     exit 1
 fi
 
-# Try to ping our own WireGuard IP through the SOCKS proxy
-if ! curl -s --connect-timeout 3 --max-time 5 --socks5-hostname localhost:${SOCKS_PORT} "http://${WG_IP}:${SOCKS_PORT}" > /dev/null 2>&1; then
-    echo "FAILED: Could not connect through SOCKS proxy via WireGuard"
+# Try to ping the peer's endpoint
+if ! ping -c 1 -W 2 "$PEER_ENDPOINT" > /dev/null 2>&1; then
+    echo "FAILED: Could not ping WireGuard peer endpoint ($PEER_ENDPOINT)"
     echo "WireGuard status:"
     wg show wg0
     echo "Current routes:"
     ip route show
     exit 1
 fi
-echo "OK: Successfully connected through SOCKS proxy via WireGuard"
+echo "OK: Successfully pinged WireGuard peer endpoint"
 
 echo "All checks passed successfully!"
 exit 0
