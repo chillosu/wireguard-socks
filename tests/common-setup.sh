@@ -76,11 +76,7 @@ start_containers() {
         --network wg-test-net \
         --privileged \
         --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
-        -e LOG_CONFS=false \
-        -e PUID=1000 \
-        -e PGID=1000 \
         -e TZ=UTC \
-        --dns=1.1.1.1 \
         -v ".:/config/wg_confs" \
         wireguard-socks:local
 
