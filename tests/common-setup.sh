@@ -1,9 +1,14 @@
 #!/bin/bash
 
+# Enable debug output
+set -x
+
 # Common setup functions for WireGuard tests
 setup_network() {
     echo "Setting up test network..."
     docker network create wg-test-net || true
+    echo "Network created, listing networks:"
+    docker network ls
 }
 
 generate_keys() {
@@ -12,6 +17,7 @@ generate_keys() {
     SERVER_PUBLIC_KEY=$(echo "$SERVER_PRIVATE_KEY" | wg pubkey)
     CLIENT_PRIVATE_KEY=$(wg genkey)
     CLIENT_PUBLIC_KEY=$(echo "$CLIENT_PRIVATE_KEY" | wg pubkey)
+    echo "Keys generated successfully"
 }
 
 create_configs() {
@@ -43,13 +49,18 @@ Endpoint = wg-server:51820
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF
+    echo "Configs created successfully"
+    echo "Server config:"
+    cat /tmp/wg-server.conf | grep -v PrivateKey
+    echo "Client config:"
+    cat /tmp/wg_client_config/wg_confs/wg0.conf | grep -v PrivateKey
 }
 
 start_containers() {
     echo "Starting containers..."
     cd /tmp/wg_client_config/wg_confs
 
-    # Start WireGuard server
+    echo "Starting WireGuard server..."
     docker run -d --name wg-server \
         --cap-add=NET_ADMIN \
         --privileged \
@@ -57,7 +68,11 @@ start_containers() {
         -v /tmp/wg-server.conf:/etc/wireguard/wg0.conf \
         linuxserver/wireguard
 
-    # Start WireGuard client and SOCKS server
+    echo "WireGuard server container status:"
+    docker ps -a | grep wg-server
+    docker logs wg-server
+
+    echo "Starting WireGuard client and SOCKS server..."
     docker run -d --name wg-client-socks-server \
         --cap-add=NET_ADMIN \
         --network wg-test-net \
@@ -71,6 +86,10 @@ start_containers() {
         -p 1080:1080 \
         -v ".:/config/wg_confs" \
         wireguard-socks:local
+
+    echo "WireGuard client container status:"
+    docker ps -a | grep wg-client-socks-server
+    docker logs wg-client-socks-server
 }
 
 wait_for_services() {
@@ -80,9 +99,19 @@ wait_for_services() {
     ELAPSED=0
 
     while [ $ELAPSED -lt $TIMEOUT ]; do
+        echo "Checking services (${ELAPSED}s elapsed)..."
+        
+        echo "SOCKS port status:"
+        docker exec wg-client-socks-server netstat -ln || true
+        
+        echo "WireGuard status:"
+        docker exec wg-client-socks-server wg show || true
+        
         if docker exec wg-client-socks-server netstat -ln | grep -q ":1080.*LISTEN" && \
            docker exec wg-client-socks-server wg show 2>/dev/null | grep -q "latest handshake"; then
             echo "Services are ready"
+            echo "Network interfaces:"
+            docker exec wg-client-socks-server ip addr show
             return 0
         fi
         sleep $INTERVAL
@@ -90,6 +119,12 @@ wait_for_services() {
     done
 
     echo "Timeout waiting for services to initialize"
+    echo "Final container states:"
+    docker ps -a
+    echo "WireGuard server logs:"
+    docker logs wg-server
+    echo "WireGuard client logs:"
+    docker logs wg-client-socks-server
     return 1
 }
 
@@ -99,6 +134,9 @@ setup_test_server() {
     docker exec wg-server sh -c "echo 'hello' > /tmp/index.html && cd /tmp && python3 -m http.server 8080" &
     SERVER_PID=$!
     sleep 5
+    echo "Test server started with PID: $SERVER_PID"
+    echo "Verifying test server:"
+    docker exec wg-server netstat -ln | grep 8080 || true
     return $SERVER_PID
 }
 
@@ -113,6 +151,7 @@ server_port = 1080
 server_type = 5
 local = 0.0.0.0/0
 EOF
+    echo "Test tools installed successfully"
 }
 
 cleanup() {
@@ -121,6 +160,7 @@ cleanup() {
     docker rm -f wg-server wg-client-socks-server || true
     docker network rm wg-test-net || true
     rm -rf /tmp/wg-server.conf /tmp/wg_client_config || true
+    echo "Cleanup completed"
 }
 
 # Export variables and functions

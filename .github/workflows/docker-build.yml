@@ -42,6 +42,7 @@ jobs:
   test-positive:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,11 +67,18 @@ jobs:
           sudo apt-get install -y wireguard-tools
 
       - name: Run positive path tests
-        run: sudo ./tests/test-wireguard-positive.sh
+        run: |
+          # Enable debug output
+          set -x
+          # Run test with increased verbosity
+          sudo DOCKER_DEBUG=1 ./tests/test-wireguard-positive.sh
+        env:
+          DOCKER_DEBUG: 1
 
   test-negative:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -95,7 +103,13 @@ jobs:
           sudo apt-get install -y wireguard-tools
 
       - name: Run negative path tests
-        run: sudo ./tests/test-wireguard-negative.sh
+        run: |
+          # Enable debug output
+          set -x
+          # Run test with increased verbosity
+          sudo DOCKER_DEBUG=1 ./tests/test-wireguard-negative.sh
+        env:
+          DOCKER_DEBUG: 1
 
   publish:
     needs: [test-positive, test-negative]
