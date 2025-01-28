@@ -22,7 +22,7 @@ nc -z $WG_CLIENT_SOCKS_SERVER_IP 1080 || exit 1
 
 # Test WireGuard connectivity (container to container)
 echo "Testing WireGuard connectivity..."
-docker exec wg-client-socks-server ping -c 1 10.0.0.1 || exit 1
+docker compose exec wg-client-socks-server ping -c 1 10.0.0.1 || exit 1
 
 # Test SOCKS proxy through WireGuard from host
 echo "Testing SOCKS proxy through WireGuard from host..."

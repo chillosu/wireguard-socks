@@ -60,8 +60,8 @@ start_containers() {
     docker compose up -d
 
     # Get the SOCKS proxy IP for host system connections
-    WG_CLIENT_SOCKS_SERVER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' wireguard-socks)
-    echo "SOCKS proxy available at container: wireguard-socks:1080"
+    WG_CLIENT_SOCKS_SERVER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' wg-client-socks-server)
+    echo "SOCKS proxy available at container: wg-client-socks-server:1080"
     echo "SOCKS proxy available at host: $WG_CLIENT_SOCKS_SERVER_IP:1080"
     export WG_CLIENT_SOCKS_SERVER_IP
 }
@@ -76,16 +76,16 @@ wait_for_services() {
         echo "Checking services (${ELAPSED}s elapsed)..."
         
         echo "SOCKS port status:"
-        docker compose exec wireguard-socks netstat -ln || true
+        docker compose exec wg-client-socks-server netstat -ln || true
         
         echo "WireGuard status:"
-        docker compose exec wireguard-socks wg show || true
+        docker compose exec wg-client-socks-server wg show || true
         
-        if docker compose exec wireguard-socks netstat -ln | grep -q ":1080.*LISTEN" && \
-           docker compose exec wireguard-socks wg show 2>/dev/null | grep -q "latest handshake"; then
+        if docker compose exec wg-client-socks-server netstat -ln | grep -q ":1080.*LISTEN" && \
+           docker compose exec wg-client-socks-server wg show 2>/dev/null | grep -q "latest handshake"; then
             echo "Services are ready"
             echo "Network interfaces:"
-            docker compose exec wireguard-socks ip addr show
+            docker compose exec wg-client-socks-server ip addr show
             return 0
         fi
         sleep $INTERVAL
@@ -98,7 +98,7 @@ wait_for_services() {
     echo "WireGuard server logs:"
     docker compose logs wg-server
     echo "WireGuard client logs:"
-    docker compose logs wireguard-socks
+    docker compose logs wg-client-socks-server
     return 1
 }
 
