@@ -107,29 +107,16 @@ if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
 fi
 echo "OK: SOCKS port is listening"
 
-echo "Checking WireGuard connectivity..."
-# Get the peer endpoint using the correct wg show command
-PEER_ENDPOINT=\$(wg show wg0 endpoints | cut -f2 | cut -d: -f1 | tr -d '[:space:]')
-
-if [ -z "\${PEER_ENDPOINT}" ]; then
-    echo "FAILED: Could not determine WireGuard peer endpoint"
-    echo "WireGuard endpoints:"
-    wg show wg0 endpoints
-    echo "Full WireGuard status:"
-    wg show wg0
-    exit 1
-fi
-
-# Try to ping the peer's endpoint
-if ! ping -c 1 -W 2 "\${PEER_ENDPOINT}" > /dev/null 2>&1; then
-    echo "FAILED: Could not ping WireGuard peer endpoint (\${PEER_ENDPOINT})"
-    echo "WireGuard status:"
-    wg show wg0
-    echo "Current routes:"
+echo "Checking default route..."
+if ! ip route show default | grep -q "dev wg0"; then
+    echo "FAILED: Default route is not through WireGuard"
+    echo "Current default route:"
+    ip route show default
+    echo "Full routing table:"
     ip route show
     exit 1
 fi
-echo "OK: Successfully pinged WireGuard peer endpoint"
+echo "OK: Default route is through WireGuard"
 
 echo "All checks passed successfully!"
 exit 0
