@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-# Source common setup
+# Source common setup and test functions
 source "$(dirname "$0")/common-setup.sh"
+source "$(dirname "$0")/test-functions.sh"
 
 # Run setup
 setup_network
@@ -15,44 +16,23 @@ install_test_tools
 
 echo "Running negative path tests..."
 
-# Test WireGuard down scenario
-echo "Testing SOCKS behavior when WireGuard is disconnected..."
-docker compose exec wg-client-socks-server wg-quick down wg0
+# Test 1: WireGuard down scenario
+run_test_scenario \
+    "WireGuard down scenario" \
+    "docker compose exec wg-client-socks-server wg-quick down wg0" \
+    "unhealthy" \
+    "false" \
+    "docker compose exec wg-client-socks-server wg-quick up wg0" || exit 1
 
-# Verify SOCKS fails when WireGuard is down
-echo "Verifying SOCKS proxy fails when WireGuard is down..."
-if curl -s --connect-timeout 5 --socks5-hostname $WG_CLIENT_SOCKS_SERVER_IP:1080 http://ipinfo.io > /dev/null 2>&1; then
-    echo "ERROR: SOCKS proxy should not work when WireGuard is down!"
-    cleanup
-    exit 1
-fi
-echo "Confirmed: SOCKS proxy correctly fails when WireGuard is down"
+# Verify WireGuard is back up and healthy
+wait_for_health_status "healthy" 30 "Waiting for container to become healthy again..." || exit 1
 
-# Wait for container to become unhealthy
-echo "Waiting up to 30 seconds for container to become unhealthy..."
-TIMEOUT=30
-ELAPSED=0
-UNHEALTHY=false
-
-while [ $ELAPSED -lt $TIMEOUT ]; do
-    # Get container health status using inspect instead of ps
-    HEALTH_STATUS=$(docker inspect wg-client-socks-server --format '{{.State.Health.Status}}')
-    if [ "$HEALTH_STATUS" = "unhealthy" ]; then
-        UNHEALTHY=true
-        echo "Container is now unhealthy as expected"
-        break
-    fi
-    sleep 1
-    ELAPSED=$((ELAPSED + 1))
-    echo "Current health status: $HEALTH_STATUS (${ELAPSED}s elapsed)"
-done
-
-if [ "$UNHEALTHY" = false ]; then
-    echo "ERROR: Container did not become unhealthy within ${TIMEOUT} seconds!"
-    echo "Final health status: $HEALTH_STATUS"
-    cleanup
-    exit 1
-fi
+# Test 2: Broken routing scenario
+run_test_scenario \
+    "Broken routing scenario" \
+    "docker compose exec wg-client-socks-server ip route del 0.0.0.0/0 dev wg0" \
+    "unhealthy" \
+    "false" || exit 1
 
 echo "All negative path tests passed successfully!"
 
