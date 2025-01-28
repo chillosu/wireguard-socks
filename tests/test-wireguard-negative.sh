@@ -35,7 +35,8 @@ ELAPSED=0
 UNHEALTHY=false
 
 while [ $ELAPSED -lt $TIMEOUT ]; do
-    HEALTH_STATUS=$(docker compose ps -a --format json wg-client-socks-server | jq -r '.[0].Health')
+    # Get container health status using inspect instead of ps
+    HEALTH_STATUS=$(docker inspect wg-client-socks-server --format '{{.State.Health.Status}}')
     if [ "$HEALTH_STATUS" = "unhealthy" ]; then
         UNHEALTHY=true
         echo "Container is now unhealthy as expected"
