@@ -20,8 +20,8 @@ generate_keys() {
 create_configs() {
     echo "Creating WireGuard configs..."
     # Create server config
-    mkdir -p /tmp
-    cat > /tmp/wg-server.conf << EOF
+    mkdir -p tmp
+    cat > tmp/wg-server.conf << EOF
 [Interface]
 PrivateKey = $SERVER_PRIVATE_KEY
 Address = 10.0.0.1/24
@@ -35,8 +35,8 @@ AllowedIPs = 10.0.0.2/32
 EOF
 
     # Create client config
-    mkdir -p /tmp/wg_client_config/wg_confs
-    cat > /tmp/wg_client_config/wg_confs/wg0.conf << EOF
+    mkdir -p tmp/wg_client_config/wg_confs
+    cat > tmp/wg_client_config/wg_confs/wg0.conf << EOF
 [Interface]
 PrivateKey = $CLIENT_PRIVATE_KEY
 Address = 10.0.0.2/24
@@ -49,17 +49,17 @@ PersistentKeepalive = 25
 EOF
     echo "Configs created successfully"
     echo "Server config:"
-    cat /tmp/wg-server.conf | grep -v PrivateKey
+    cat tmp/wg-server.conf | grep -v PrivateKey
     echo "Client config:"
-    cat /tmp/wg_client_config/wg_confs/wg0.conf | grep -v PrivateKey
+    cat tmp/wg_client_config/wg_confs/wg0.conf | grep -v PrivateKey
 }
 
 start_containers() {
     echo "Starting containers..."
-    cd /tmp/wg_client_config/wg_confs
+    cd tmp/wg_client_config/wg_confs
 
     echo "Starting WireGuard server and client with SOCKS server..."
-    CONFIG_PATH=/tmp/wg_client_config/wg_confs docker compose -f ../../docker-compose.yml up -d --profile test
+    CONFIG_PATH=../../../tmp/wg_client_config/wg_confs docker compose -f ../../../docker-compose.yml up -d
 
     # Get the SOCKS proxy IP for host system connections
     WG_CLIENT_SOCKS_SERVER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' wireguard-socks)
@@ -78,16 +78,16 @@ wait_for_services() {
         echo "Checking services (${ELAPSED}s elapsed)..."
         
         echo "SOCKS port status:"
-        docker compose -f /tmp/docker-compose.yml exec wireguard-socks netstat -ln || true
+        docker compose -f docker-compose.yml exec wireguard-socks netstat -ln || true
         
         echo "WireGuard status:"
-        docker compose -f /tmp/docker-compose.yml exec wireguard-socks wg show || true
+        docker compose -f docker-compose.yml exec wireguard-socks wg show || true
         
-        if docker compose -f /tmp/docker-compose.yml exec wireguard-socks netstat -ln | grep -q ":1080.*LISTEN" && \
-           docker compose -f /tmp/docker-compose.yml exec wireguard-socks wg show 2>/dev/null | grep -q "latest handshake"; then
+        if docker compose -f docker-compose.yml exec wireguard-socks netstat -ln | grep -q ":1080.*LISTEN" && \
+           docker compose -f docker-compose.yml exec wireguard-socks wg show 2>/dev/null | grep -q "latest handshake"; then
             echo "Services are ready"
             echo "Network interfaces:"
-            docker compose -f /tmp/docker-compose.yml exec wireguard-socks ip addr show
+            docker compose -f docker-compose.yml exec wireguard-socks ip addr show
             return 0
         fi
         sleep $INTERVAL
@@ -96,32 +96,32 @@ wait_for_services() {
 
     echo "Timeout waiting for services to initialize"
     echo "Final container states:"
-    docker compose -f /tmp/docker-compose.yml ps
+    docker compose -f docker-compose.yml ps
     echo "WireGuard server logs:"
-    docker compose -f /tmp/docker-compose.yml logs wg-server
+    docker compose -f docker-compose.yml logs wg-server
     echo "WireGuard client logs:"
-    docker compose -f /tmp/docker-compose.yml logs wireguard-socks
+    docker compose -f docker-compose.yml logs wireguard-socks
     return 1
 }
 
 setup_test_server() {
     echo "Setting up test HTTP server..."
     # Install required packages
-    docker compose -f /tmp/docker-compose.yml exec wg-server apk add --no-cache python3 curl
+    docker compose -f docker-compose.yml exec wg-server apk add --no-cache python3 curl
 
     # Create test file and start server in the container
-    docker compose -f /tmp/docker-compose.yml exec wg-server sh -c 'echo "hello" > /tmp/index.html'
-    docker compose -f /tmp/docker-compose.yml exec -d wg-server sh -c 'cd /tmp && python3 -m http.server 8080'
+    docker compose -f docker-compose.yml exec wg-server sh -c 'echo "hello" > /tmp/index.html'
+    docker compose -f docker-compose.yml exec -d wg-server sh -c 'cd /tmp && python3 -m http.server 8080'
 
     # Wait for server to start
     echo "Waiting for HTTP server to start..."
     TIMEOUT=10
     ELAPSED=0
     while [ $ELAPSED -lt $TIMEOUT ]; do
-        if docker compose -f /tmp/docker-compose.yml exec wg-server netstat -ln | grep -q ":8080.*LISTEN"; then
+        if docker compose -f docker-compose.yml exec wg-server netstat -ln | grep -q ":8080.*LISTEN"; then
             echo "HTTP server is running"
             # Test the server
-            if docker compose -f /tmp/docker-compose.yml exec wg-server curl -s http://localhost:8080 | grep -q "hello"; then
+            if docker compose -f docker-compose.yml exec wg-server curl -s http://localhost:8080 | grep -q "hello"; then
                 echo "HTTP server is responding correctly"
                 return 0
             fi
@@ -131,8 +131,8 @@ setup_test_server() {
     done
 
     echo "Failed to start HTTP server"
-    docker compose -f /tmp/docker-compose.yml exec wg-server ps aux
-    docker compose -f /tmp/docker-compose.yml exec wg-server netstat -ln
+    docker compose -f docker-compose.yml exec wg-server ps aux
+    docker compose -f docker-compose.yml exec wg-server netstat -ln
     return 1
 }
 
@@ -152,8 +152,8 @@ EOF
 
 cleanup() {
     echo "Cleaning up..."
-    docker compose -f /tmp/docker-compose.yml down -v || true
-    rm -rf /tmp/wg-server.conf /tmp/wg_client_config || true
+    docker compose -f docker-compose.yml down -v || true
+    rm -rf tmp || true
     echo "Cleanup completed"
 }
 

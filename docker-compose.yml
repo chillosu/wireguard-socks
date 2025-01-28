@@ -25,13 +25,13 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    networks:
+      - wg-test-net
 
   # Test environment services (only used in test environment)
   wg-server:
     image: linuxserver/wireguard
     container_name: wg-server
-    profiles:
-      - test
     cap_add:
       - NET_ADMIN
     privileged: true

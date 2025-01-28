@@ -29,18 +29,11 @@ jobs:
       - name: Verify image
         run: docker images | grep wireguard-socks
 
-      - name: Copy docker-compose.yml for testing
-        run: |
-          mkdir -p /tmp
-          cp docker-compose.yml /tmp/
-
       - name: Upload artifacts for testing
         uses: actions/upload-artifact@v4
         with:
           name: wireguard-socks-test
-          path: |
-            /tmp/docker-compose.yml
-            tests/
+          path: tests/
           retention-days: 1
 
   test-positive:
@@ -60,7 +53,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wireguard-socks-test
-          path: /tmp
+          path: tests/
 
       - name: Install WireGuard
         run: |
@@ -93,7 +86,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wireguard-socks-test
-          path: /tmp
+          path: tests/
 
       - name: Install WireGuard
         run: |

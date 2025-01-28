@@ -17,7 +17,7 @@ echo "Running negative path tests..."
 
 # Test WireGuard down scenario
 echo "Testing SOCKS behavior when WireGuard is disconnected..."
-docker compose -f /tmp/docker-compose.yml exec wireguard-socks wg-quick down wg0
+docker compose -f docker-compose.yml exec wireguard-socks wg-quick down wg0
 
 # Verify SOCKS fails when WireGuard is down
 echo "Verifying SOCKS proxy fails when WireGuard is down..."
@@ -35,7 +35,7 @@ ELAPSED=0
 UNHEALTHY=false
 
 while [ $ELAPSED -lt $TIMEOUT ]; do
-    HEALTH_STATUS=$(docker compose -f /tmp/docker-compose.yml ps -a --format json wireguard-socks | jq -r '.[0].Health')
+    HEALTH_STATUS=$(docker compose -f docker-compose.yml ps -a --format json wireguard-socks | jq -r '.[0].Health')
     if [ "$HEALTH_STATUS" = "unhealthy" ]; then
         UNHEALTHY=true
         echo "Container is now unhealthy as expected"
