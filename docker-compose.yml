@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  wireguard-socks:
+    build: .
+    container_name: wireguard-socks
+    cap_add:
+      - NET_ADMIN
+    restart: always
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TZ:-UTC}
+      - LOG_CONFS=${LOG_CONFS:-true}
+      - SOCKS_PORT=${SOCKS_PORT:-1080}
+    ports:
+      - "${SOCKS_PORT:-1080}:${SOCKS_PORT:-1080}"
+    volumes:
+      - ${CONFIG_PATH:-.}:/config/wg_confs
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    healthcheck:
+      test: /usr/local/bin/healthcheck.sh
+      interval: 1s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Test environment services (only used in test environment)
+  wg-server:
+    image: linuxserver/wireguard
+    container_name: wg-server
+    profiles:
+      - test
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+    volumes:
+      - ./tmp/wg-server.conf:/etc/wireguard/wg0.conf
+    networks:
+      - wg-test-net
+
+networks:
+  wg-test-net:
+    name: wg-test-net
+    driver: bridge 

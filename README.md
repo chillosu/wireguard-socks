@@ -31,7 +31,6 @@ Network Details:
 
 ## Run me:
 
-
 1. Download Docker
 2. Create/download a working wireguard client config (e.g. wg0.conf) with desired wireguard VPN configuration, put it into current folder.
 
