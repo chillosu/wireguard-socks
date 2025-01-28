@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Enable debug output
-set -x
 
 # Common setup functions for WireGuard tests
 setup_network() {
@@ -90,10 +88,11 @@ start_containers() {
     docker ps -a | grep wg-client-socks-server
     docker logs wg-client-socks-server
 
-    # Get the SOCKS proxy IP address
-    SOCKS_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' wg-client-socks-server)
-    echo "SOCKS proxy available at: $SOCKS_IP:1080"
-    export SOCKS_IP
+    # Get the SOCKS proxy IP for host system connections
+    WG_CLIENT_SOCKS_SERVER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' wg-client-socks-server)
+    echo "SOCKS proxy available at container: wg-client-socks-server:1080"
+    echo "SOCKS proxy available at host: $WG_CLIENT_SOCKS_SERVER_IP:1080"
+    export WG_CLIENT_SOCKS_SERVER_IP
 }
 
 wait_for_services() {
@@ -170,7 +169,7 @@ install_test_tools() {
 
     # Configure tsocks to use the Docker network SOCKS proxy
     cat > /etc/tsocks.conf << EOF
-server = $SOCKS_IP
+server = $WG_CLIENT_SOCKS_SERVER_IP
 server_port = 1080
 server_type = 5
 local = 0.0.0.0/0

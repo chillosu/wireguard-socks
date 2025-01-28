@@ -11,12 +11,12 @@ The container (wg-client-socks-server below) combines a WireGuard client and a S
 graph LR
     subgraph "[wg-client-socks-server]"
         SOCKS["SOCKS Proxy"]
-        wg-client["WireGuard Client"]
+        wg-client["WireGuard Client 10.0.0.2"]
         SOCKS -- Route --> wg-client
     end
     
     Client -- "SOCKS:1080/tcp" --> SOCKS
-    wg-client -- wg0 tunnel --> WGServer["WireGuard Server :51820/udp"]
+    wg-client -- wg0 tunnel --> WGServer["WireGuard Server :51820/udp 10.0.0.1"]
     subgraph "[wg-server]"
         WGServer
     end

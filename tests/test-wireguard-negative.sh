@@ -21,7 +21,7 @@ docker exec wg-client-socks-server wg-quick down wg0
 
 # Verify SOCKS fails when WireGuard is down
 echo "Verifying SOCKS proxy fails when WireGuard is down..."
-if curl -s --connect-timeout 5 --socks5-hostname $SOCKS_IP:1080 http://example.com > /dev/null 2>&1; then
+if curl -s --connect-timeout 5 --socks5-hostname $WG_CLIENT_SOCKS_SERVER_IP:1080 http://ipinfo.io > /dev/null 2>&1; then
     echo "ERROR: SOCKS proxy should not work when WireGuard is down!"
     cleanup
     exit 1
