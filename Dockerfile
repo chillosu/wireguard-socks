@@ -107,13 +107,22 @@ if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
 fi
 echo "OK: SOCKS port is listening"
 
-echo "Testing local network connectivity through SOCKS proxy..."
-# Try to connect to localhost through SOCKS - if routing is broken, this will fail
-if ! curl -s --connect-timeout 3 --max-time 5 --socks5-hostname localhost:${SOCKS_PORT} http://127.0.0.1:${SOCKS_PORT} 2>/dev/null | grep -q .; then
-    echo "FAILED: Could not connect through SOCKS proxy"
+echo "Checking WireGuard connectivity..."
+# Get the active peer endpoint
+PEER_IP=$(wg show wg0 endpoints | awk '{print $2}' | cut -d: -f1)
+if [ -z "$PEER_IP" ]; then
+    echo "FAILED: Could not determine WireGuard peer endpoint"
     exit 1
 fi
-echo "OK: SOCKS proxy is working"
+
+# Try to ping the peer
+if ! ping -c 1 -W 2 "$PEER_IP" > /dev/null 2>&1; then
+    echo "FAILED: Could not ping WireGuard peer ($PEER_IP)"
+    echo "Current routes:"
+    ip route show
+    exit 1
+fi
+echo "OK: Successfully pinged WireGuard peer"
 
 echo "All checks passed successfully!"
 exit 0
