@@ -108,11 +108,14 @@ fi
 echo "OK: SOCKS port is listening"
 
 echo "Checking WireGuard connectivity..."
-# Extract the peer's endpoint IP using a more precise grep pattern
-PEER_ENDPOINT=$(wg show wg0 | grep -A1 '^peer' | grep 'endpoint' | awk '{print $2}' | cut -d: -f1)
+# Get the peer endpoint directly using wg show endpoints
+PEER_ENDPOINT=$(wg show wg0 endpoints | awk '{print $2}' | cut -d: -f1)
+
 if [ -z "$PEER_ENDPOINT" ]; then
     echo "FAILED: Could not determine WireGuard peer endpoint"
-    echo "WireGuard status:"
+    echo "WireGuard endpoints:"
+    wg show wg0 endpoints
+    echo "Full WireGuard status:"
     wg show wg0
     exit 1
 fi
