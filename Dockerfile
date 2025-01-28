@@ -124,8 +124,8 @@ if ! ip route show table 51820 | grep -q "^default.*dev wg0"; then
     exit 1
 fi
 
-# Check for competing default routes in main table with lower metrics
-if ip route show | grep -q "^default.*metric [0-9]\+.*dev eth0"; then
+# Check for any default route through eth0 in main table
+if ip route show | grep -q "^default.*dev eth0"; then
     echo "FAILED: Found competing default route through eth0 in main table"
     echo "Current routes in main table:"
     ip route show
