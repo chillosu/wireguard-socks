@@ -24,19 +24,13 @@ run_test_scenario \
     "false" \
     "true" || exit 1
 
-# Test 2: Broken routing scenario
-# First check if the route exists
-if docker compose exec wg-client-socks-server ip route show | grep -q "0.0.0.0/0 dev wg0"; then
-    run_test_scenario \
-        "Broken routing scenario" \
-        "docker compose exec wg-client-socks-server ip route del 0.0.0.0/0 dev wg0" \
-        "unhealthy" \
-        "false" \
-        "true" \
-        true || exit 1
-else
-    echo "WARNING: Default route through wg0 not found, skipping route deletion test"
-fi
+# Test 2: Bad routing scenario
+run_test_scenario \
+    "Bad routing scenario" \
+    "docker compose exec wg-client-socks-server ip route add 0.0.0.0/0 via 172.19.0.1 dev eth0 metric 50" \
+    "unhealthy" \
+    "false" \
+    "true" || exit 1
 
 echo "All negative path tests passed successfully!"
 
