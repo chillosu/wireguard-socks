@@ -97,8 +97,6 @@ if ! ip addr show wg0 | grep -q "inet "; then
     exit 1
 fi
 echo "OK: WireGuard has valid IP"
-echo "WireGuard IP configuration:"
-ip addr show wg0
 
 echo "Checking if SOCKS port is listening..."
 if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
@@ -108,6 +106,14 @@ if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
     exit 1
 fi
 echo "OK: SOCKS port is listening"
+
+echo "Testing local network connectivity through SOCKS proxy..."
+# Try to connect to localhost through SOCKS - if routing is broken, this will fail
+if ! curl -s --connect-timeout 3 --max-time 5 --socks5-hostname localhost:${SOCKS_PORT} http://127.0.0.1:${SOCKS_PORT} 2>/dev/null | grep -q .; then
+    echo "FAILED: Could not connect through SOCKS proxy"
+    exit 1
+fi
+echo "OK: SOCKS proxy is working"
 
 echo "All checks passed successfully!"
 exit 0
