@@ -57,7 +57,7 @@ EOF
 start_containers() {
     echo "Starting containers..."
     echo "Starting WireGuard server and client with SOCKS server..."
-    CONFIG_PATH=tmp/wg_client_config/wg_confs docker compose up -d
+    docker compose up -d
 
     # Get the SOCKS proxy IP for host system connections
     WG_CLIENT_SOCKS_SERVER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' wireguard-socks)

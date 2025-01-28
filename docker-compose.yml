@@ -16,7 +16,7 @@ services:
     ports:
       - "${SOCKS_PORT:-1080}:${SOCKS_PORT:-1080}"
     volumes:
-      - ${CONFIG_PATH:-.}:/config/wg_confs
+      - ./tmp/wg_client_config/wg_confs:/config/wg_confs
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1
     healthcheck:
