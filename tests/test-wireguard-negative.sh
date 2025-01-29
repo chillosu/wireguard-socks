@@ -24,10 +24,10 @@ run_test_scenario \
     "false" \
     "true" || exit 1
 
-# Test 2: Bad routing scenario
+# Test 2: SOCKS daemon down scenario
 run_test_scenario \
-    "Bad routing scenario" \
-    "docker compose exec wg-client-socks-server ip route add 0.0.0.0/0 via 172.19.0.1 dev eth0 metric 50" \
+    "SOCKS daemon down scenario" \
+    "docker compose exec wg-client-socks-server pkill sockd" \
     "unhealthy" \
     "false" \
     "true" || exit 1

@@ -132,5 +132,5 @@ EOF
 RUN chmod +x /usr/local/bin/healthcheck.sh
 
 # Set healthcheck
-HEALTHCHECK --interval=1s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=10s --start-period=30s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh

@@ -6,7 +6,13 @@ services:
     container_name: wg-client-socks-server
     cap_add:
       - NET_ADMIN
-    restart: always
+    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 3
+        window: 120s
     environment:
       - TZ=${TZ:-UTC}
       - LOG_CONFS=${LOG_CONFS:-true}
@@ -33,6 +39,7 @@ services:
     cap_add:
       - NET_ADMIN
     privileged: true
+    restart: unless-stopped
     volumes:
       - ./tmp/wg-server.conf:/etc/wireguard/wg0.conf
     networks:
