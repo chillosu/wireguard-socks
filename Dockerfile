@@ -97,8 +97,6 @@ if ! ip addr show wg0 | grep -q "inet "; then
     exit 1
 fi
 echo "OK: WireGuard has valid IP"
-echo "WireGuard IP configuration:"
-ip addr show wg0
 
 echo "Checking if SOCKS port is listening..."
 if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
@@ -109,6 +107,24 @@ if ! netstat -an | grep -q ":${SOCKS_PORT}.*LISTEN"; then
 fi
 echo "OK: SOCKS port is listening"
 
+echo "Checking WireGuard routing..."
+# Check if the WireGuard routing rule exists
+if ! ip rule show | grep -q "not from all fwmark 0xca6c lookup 51820"; then
+    echo "FAILED: WireGuard routing rule is missing"
+    echo "Current routing rules:"
+    ip rule show
+    exit 1
+fi
+
+# Check if the default route in table 51820 goes through wg0
+if ! ip route show table 51820 | grep -q "^default.*dev wg0"; then
+    echo "FAILED: Default route in table 51820 is not through WireGuard"
+    echo "Current routes in table 51820:"
+    ip route show table 51820
+    exit 1
+fi
+
+
 echo "All checks passed successfully!"
 exit 0
 EOF
@@ -116,5 +132,5 @@ EOF
 RUN chmod +x /usr/local/bin/healthcheck.sh
 
 # Set healthcheck
-HEALTHCHECK --interval=1s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=5s --timeout=10s --start-period=30s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh

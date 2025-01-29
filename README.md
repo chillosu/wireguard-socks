@@ -1,7 +1,7 @@
 # wireguard-socks
 [![Build and Test](https://github.com/chillosu/wireguard-socks/actions/workflows/docker-build.yml/badge.svg)](https://github.com/chillosu/wireguard-socks/actions/workflows/docker-build.yml)
 
-Dedicated container to HTTP Proxy through a Wireguard VPN.
+Dedicated container to HTTP Proxy through a Wireguard VPN using https://github.com/linuxserver/docker-wireguard as a base.
 
 ## Network Flow
 
@@ -31,9 +31,8 @@ Network Details:
 
 ## Run me:
 
-
 1. Download Docker
-2. Create/download a working wireguard client config (e.g. wg0.conf) with desired wireguard VPN configuration, put it into current folder.
+2. Create/download wireguard client config (e.g. wg0.conf) with desired wireguard VPN configuration, put it into current folder.
 
 Example:
 ```
@@ -58,8 +57,6 @@ docker run -d \
   --name=wireguard-socks \
   --cap-add=NET_ADMIN \
   --restart=always \
-  -e PUID=1000 \
-  -e PGID=1000 \
   -e TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone) \
   -e LOG_CONFS=true \
   -p ${SOCKS_PORT:-1080}:${SOCKS_PORT:-1080} \
@@ -67,6 +64,8 @@ docker run -d \
   --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
   chillosu/wireguard-socks
 ```
+
+For logs use `docker logs -f wireguard-socks`
 
 4. Reveal returned public egress through your new socks proxy:
 

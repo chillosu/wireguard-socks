@@ -1,0 +1,61 @@
+services:
+  wg-client-socks-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wg-client-socks-server
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 30s
+        max_attempts: 3
+        window: 120s
+    environment:
+      - TZ=${TZ:-UTC}
+      - LOG_CONFS=${LOG_CONFS:-true}
+      - SOCKS_PORT=${SOCKS_PORT:-1080}
+    ports:
+      - "${SOCKS_PORT:-1080}:${SOCKS_PORT:-1080}"
+    volumes:
+      - ./tmp/wg_client_config/wg_confs:/config/wg_confs
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    healthcheck:
+      test: /usr/local/bin/healthcheck.sh
+      interval: 1s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - wg-test-net
+
+  # Test environment services (only used in test environment)
+  wg-server:
+    image: linuxserver/wireguard
+    container_name: wg-server
+    cap_add:
+      - NET_ADMIN
+    privileged: true
+    restart: unless-stopped
+    volumes:
+      - ./tmp/wg-server.conf:/etc/wireguard/wg0.conf
+    networks:
+      - wg-test-net
+
+  socks-test:
+    image: alpine
+    container_name: socks-test
+    command: sh -c "while true; do nc -z wg-client-socks-server 1080 || exit 1; sleep 1; done"
+    depends_on:
+      wg-client-socks-server:
+        condition: service_healthy
+    networks:
+      - wg-test-net
+
+networks:
+  wg-test-net:
+    name: wg-test-net
+    driver: bridge 
