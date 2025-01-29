@@ -32,7 +32,7 @@ Network Details:
 ## Run me:
 
 1. Download Docker
-2. Create/download a working wireguard client config (e.g. wg0.conf) with desired wireguard VPN configuration, put it into current folder.
+2. Create/download wireguard client config (e.g. wg0.conf) with desired wireguard VPN configuration, put it into current folder.
 
 Example:
 ```
@@ -64,6 +64,8 @@ docker run -d \
   --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
   chillosu/wireguard-socks
 ```
+
+For logs use `docker logs -f wireguard-socks`
 
 4. Reveal returned public egress through your new socks proxy:
 
