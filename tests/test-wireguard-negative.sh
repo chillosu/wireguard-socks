@@ -27,7 +27,7 @@ run_test_scenario \
 # Test 2: SOCKS daemon down scenario
 run_test_scenario \
     "SOCKS daemon down scenario" \
-    "docker compose exec wg-client-socks-server s6-svc -d /run/service/svc-sockd" \
+    "docker compose exec wg-client-socks-server sh -c 's6-svc -d /run/service/svc-sockd && pkill sockd'" \
     "unhealthy" \
     "false" \
     "true" || exit 1
