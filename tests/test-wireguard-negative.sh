@@ -16,7 +16,7 @@ install_test_tools
 
 echo "Running negative path tests..."
 
-# Test 1: WireGuard down scenario
+# Bring WireGuard down for DNS testing
 echo "Bringing WireGuard down for DNS testing..."
 docker compose exec wg-client-socks-server wg-quick down wg0
 
@@ -32,25 +32,27 @@ echo "Starting DNS traffic capture on host..."
 echo "Available interfaces:"
 ip link show
 
-echo "Starting capture on all interfaces..."
-tcpdump -n -i any -v -s0 '(udp port 53 or tcp port 53)' > /tmp/dns_capture.txt 2>&1 &
+echo "Starting capture of upstream DNS traffic (excluding local resolver)..."
+tcpdump -n -i eth0 -v -s0 'port 53 and not host 127.0.0.53 and not host 127.0.0.1' > /tmp/dns_capture.txt 2>&1 &
 TCPDUMP_PID=$!
 sleep 2  # Give tcpdump time to start
 
+# Show DNS configuration details
 echo "Host DNS configuration:"
 cat /etc/resolv.conf
+echo "Systemd resolved status:"
+resolvectl status
 
-# Test DNS resolution with standard SOCKS5 (DNS resolved on host)
-echo "Testing DNS resolution with standard SOCKS5 (host DNS)..."
+# Generate DNS traffic with both SOCKS modes
+echo "Generating DNS traffic with standard SOCKS5..."
 docker run --rm --network wg-test-net curlimages/curl:latest \
-    curl -v --socks5-hostname wg-client-socks-server:1080 \
-    https://google.com 2>&1 | grep -E "DNS|SOCKS5|Resolved|Info:|HTTP/" || true
+    curl -s --socks5-hostname wg-client-socks-server:1080 \
+    https://google.com > /dev/null || true
 
-# Test DNS resolution with SOCKS5h (DNS resolved through proxy)
-echo "Testing DNS resolution with SOCKS5h (proxy DNS)..."
+echo "Generating DNS traffic with SOCKS5h..."
 docker run --rm --network wg-test-net curlimages/curl:latest \
-    curl -v --proxy socks5h://wg-client-socks-server:1080 \
-    https://google.com 2>&1 | grep -E "DNS|SOCKS5|Resolved|Info:|HTTP/" || true
+    curl -s --proxy socks5h://wg-client-socks-server:1080 \
+    https://google.com > /dev/null || true
 
 # Stop tcpdump and show results
 echo "Stopping DNS capture and showing results..."
@@ -59,7 +61,11 @@ sleep 1
 echo "DNS traffic captured on host:"
 cat /tmp/dns_capture.txt
 
-# Now run the formal WireGuard down test which will restart everything
+# Restore system state after DNS testing
+echo "Restoring system state..."
+restart_containers || exit 1
+
+# Now run the formal negative tests
 echo "Running formal WireGuard down test..."
 run_test_scenario \
     "WireGuard down scenario" \
