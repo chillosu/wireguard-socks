@@ -23,47 +23,55 @@ docker compose exec wg-client-socks-server wg-quick down wg0
 # Test DNS resolution with WireGuard down to see raw DNS traffic
 echo "Testing DNS resolution with WireGuard down..."
 
-# Install tcpdump on host
-echo "Installing tcpdump on host..."
-apt-get update && apt-get install -y tcpdump
+# Install tcpdump quietly
+apt-get update -qq
+apt-get install -qq -y tcpdump
 
 # Start tcpdump in background on host
-echo "Starting DNS traffic capture on host..."
-echo "Available interfaces:"
-ip link show
-
-echo "Starting capture of upstream DNS traffic (excluding local resolver)..."
-tcpdump -n -i eth0 -v -s0 'port 53 and not host 127.0.0.53 and not host 127.0.0.1' > /tmp/dns_capture.txt 2>&1 &
+echo "Starting DNS traffic capture (WireGuard DOWN)..."
+tcpdump -n -i eth0 'port 53 and not host 127.0.0.53 and not host 127.0.0.1' > /tmp/dns_capture_down.txt 2>&1 &
 TCPDUMP_PID=$!
-sleep 2  # Give tcpdump time to start
+sleep 2
 
-# Show DNS configuration details
-echo "Host DNS configuration:"
-cat /etc/resolv.conf
-echo "Systemd resolved status:"
-resolvectl status
+# Show only the current DNS server
+echo "Current DNS server:"
+resolvectl status eth0 | grep "Current DNS Server:"
 
-# Generate DNS traffic with both SOCKS modes
-echo "Generating DNS traffic with standard SOCKS5..."
+# Generate DNS traffic
+echo "Generating DNS queries..."
 docker run --rm --network wg-test-net curlimages/curl:latest \
     curl -s --socks5-hostname wg-client-socks-server:1080 \
     https://google.com > /dev/null || true
 
-echo "Generating DNS traffic with SOCKS5h..."
-docker run --rm --network wg-test-net curlimages/curl:latest \
-    curl -s --proxy socks5h://wg-client-socks-server:1080 \
-    https://google.com > /dev/null || true
-
 # Stop tcpdump and show results
-echo "Stopping DNS capture and showing results..."
+echo "Stopping DNS capture..."
 kill $TCPDUMP_PID
 sleep 1
-echo "DNS traffic captured on host:"
-cat /tmp/dns_capture.txt
+echo "DNS traffic with WireGuard DOWN:"
+grep -E "A\? |AAAA\? " /tmp/dns_capture_down.txt || true
 
-# Restore system state after DNS testing
+# Restore system state and wait for WireGuard to be up
 echo "Restoring system state..."
 restart_containers || exit 1
+
+# Now capture DNS with WireGuard up
+echo "Starting DNS traffic capture (WireGuard UP)..."
+tcpdump -n -i eth0 'port 53 and not host 127.0.0.53 and not host 127.0.0.1' > /tmp/dns_capture_up.txt 2>&1 &
+TCPDUMP_PID=$!
+sleep 2
+
+# Generate DNS traffic again
+echo "Generating DNS queries with WireGuard UP..."
+docker run --rm --network wg-test-net curlimages/curl:latest \
+    curl -s --socks5-hostname wg-client-socks-server:1080 \
+    https://google.com > /dev/null || true
+
+# Stop second tcpdump and show results
+echo "Stopping DNS capture..."
+kill $TCPDUMP_PID
+sleep 1
+echo "DNS traffic with WireGuard UP:"
+grep -E "A\? |AAAA\? " /tmp/dns_capture_up.txt || true
 
 # Now run the formal negative tests
 echo "Running formal WireGuard down test..."
