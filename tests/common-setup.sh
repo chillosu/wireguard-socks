@@ -138,10 +138,10 @@ setup_test_server() {
 
 install_test_tools() {
     echo "Installing test tools..."
-    apt-get update && apt-get install -y curl netcat-openbsd tsocks socat python3
+    sudo apt-get update && sudo apt-get install -y curl netcat-openbsd tsocks socat python3
 
     # Configure tsocks to use the Docker network SOCKS proxy
-    cat > /etc/tsocks.conf << EOF
+    sudo tee /etc/tsocks.conf << EOF > /dev/null
 server = $WG_CLIENT_SOCKS_SERVER_IP
 server_port = 1080
 server_type = 5
