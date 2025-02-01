@@ -50,22 +50,24 @@ PersistentKeepalive = 25
 AllowedIPs = 0.0.0.0/0
 ```
 
-3. Run the docker container with the following command:
+3. Run the container to serve the SOCKS proxy locally on port 1080:
 
 ```
+docker stop wireguard-socks
+docker rm wireguard-socks
+docker pull chillosu/wireguard-socks
 docker run -d \
   --name=wireguard-socks \
   --cap-add=NET_ADMIN \
   --restart=always \
   -e TZ=$(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone) \
-  -e LOG_CONFS=true \
   -p ${SOCKS_PORT:-1080}:${SOCKS_PORT:-1080} \
   -v "${CONFIG_PATH:-.}:/config/wg_confs" \
   --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
   chillosu/wireguard-socks
 ```
 
-For logs use `docker logs -f wireguard-socks`
+For logs use `docker logs -f wireguard-socks`. To see health use `docker inspect wireguard-socks`.
 
 4. Reveal returned public egress through your new socks proxy:
 

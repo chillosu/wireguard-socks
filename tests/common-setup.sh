@@ -48,16 +48,12 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF
     echo "Configs created successfully"
-    echo "Server config:"
-    cat tmp/wg-server.conf | grep -v PrivateKey
-    echo "Client config:"
-    cat tmp/wg_client_config/wg_confs/wg0.conf | grep -v PrivateKey
 }
 
 start_containers() {
     echo "Starting containers..."
     echo "Starting WireGuard server and client with SOCKS server..."
-    docker compose up -d
+    docker compose up --quiet-pull -d
 
     # Get the SOCKS proxy IP for host system connections
     WG_CLIENT_SOCKS_SERVER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' wg-client-socks-server)
@@ -75,17 +71,21 @@ wait_for_services() {
     while [ $ELAPSED -lt $TIMEOUT ]; do
         echo "Checking services (${ELAPSED}s elapsed)..."
         
-        echo "SOCKS port status:"
-        docker compose exec wg-client-socks-server netstat -ln || true
-        
-        echo "WireGuard status:"
-        docker compose exec wg-client-socks-server wg show || true
+        if [ "${DEBUG:-0}" = "1" ]; then
+            echo "SOCKS port status:"
+            docker compose exec wg-client-socks-server netstat -ln || true
+            
+            echo "WireGuard status:"
+            docker compose exec wg-client-socks-server wg show || true
+        fi
         
         if docker compose exec wg-client-socks-server netstat -ln | grep -q ":1080.*LISTEN" && \
            docker compose exec wg-client-socks-server wg show 2>/dev/null | grep -q "latest handshake"; then
             echo "Services are ready"
-            echo "Network interfaces:"
-            docker compose exec wg-client-socks-server ip addr show
+            if [ "${DEBUG:-0}" = "1" ]; then
+                echo "Network interfaces:"
+                docker compose exec wg-client-socks-server ip addr show
+            fi
             return 0
         fi
         sleep $INTERVAL
@@ -93,12 +93,14 @@ wait_for_services() {
     done
 
     echo "Timeout waiting for services to initialize"
-    echo "Final container states:"
-    docker compose ps
-    echo "WireGuard server logs:"
-    docker compose logs wg-server
-    echo "WireGuard client logs:"
-    docker compose logs wg-client-socks-server
+    if [ "${DEBUG:-0}" = "1" ]; then
+        echo "Final container states:"
+        docker compose ps
+        echo "WireGuard server logs:"
+        docker compose logs wg-server
+        echo "WireGuard client logs:"
+        docker compose logs wg-client-socks-server
+    fi
     return 1
 }
 
@@ -136,10 +138,10 @@ setup_test_server() {
 
 install_test_tools() {
     echo "Installing test tools..."
-    apt-get update && apt-get install -y curl netcat-openbsd tsocks socat python3
+    sudo apt-get update && sudo apt-get install -y curl netcat-openbsd tsocks socat python3
 
     # Configure tsocks to use the Docker network SOCKS proxy
-    cat > /etc/tsocks.conf << EOF
+    sudo tee /etc/tsocks.conf << EOF > /dev/null
 server = $WG_CLIENT_SOCKS_SERVER_IP
 server_port = 1080
 server_type = 5

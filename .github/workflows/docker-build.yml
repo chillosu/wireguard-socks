@@ -62,12 +62,7 @@ jobs:
 
       - name: Run positive path tests
         run: |
-          # Enable debug output
-          set -x
-          # Run test with increased verbosity
-          sudo DOCKER_DEBUG=1 ./tests/test-wireguard-positive.sh
-        env:
-          DOCKER_DEBUG: 1
+          ./tests/test-wireguard-positive.sh
 
   test-negative:
     needs: build
@@ -95,12 +90,7 @@ jobs:
 
       - name: Run negative path tests
         run: |
-          # Enable debug output
-          set -x
-          # Run test with increased verbosity
-          sudo DOCKER_DEBUG=1 ./tests/test-wireguard-negative.sh
-        env:
-          DOCKER_DEBUG: 1
+          ./tests/test-wireguard-negative.sh
 
   publish:
     needs: [test-positive, test-negative]
