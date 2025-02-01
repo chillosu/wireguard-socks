@@ -24,8 +24,8 @@ docker compose exec wg-client-socks-server wg-quick down wg0
 echo "Testing DNS resolution with WireGuard down..."
 
 # Install tcpdump quietly
-apt-get update -qq
-apt-get install -qq -y tcpdump
+sudo apt-get update -qq
+sudo apt-get install -qq -y tcpdump
 
 # Start tcpdump in background on host
 echo "Starting DNS traffic capture (WireGuard DOWN)..."
